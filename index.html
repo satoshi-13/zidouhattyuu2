@@ -357,8 +357,8 @@
                 return; 
             }
 
-            // ★★★ Google Apps Scriptをデプロイして取得した「新しいURL」をここに貼り付けてください ★★★
-            const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxbnG6xeZ_-zRU3ipiTDrrOdelIukNEfhZf0bEEqSZcgIlt_7XRUnqBwdis5uYxM9rTxA/exec';
+            // ★★★ 新しいデプロイURLに更新済み ★★★
+            const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxLEeYjM-QZJgaWTB7bt7NbK_zKbLBd1I4h3w00vAltoknAqltuyXOkTLQk0xv6S4gQDg/exec';
             
             const state = { 
                 user: null, currentView: null, historyStack: [], 
@@ -420,10 +420,6 @@
             const hideAllModals = () => { Object.values(dom.modals).forEach(modal => modal.classList.add('hidden')); };
 
             const callGasApi = async (action, payload = {}) => {
-                if (GAS_WEB_APP_URL === 'ここに新しいデプロイURLを貼り付け') {
-                    showAlert('エラー: Google Apps ScriptのURLが設定されていません。index.htmlファイルを修正してください。');
-                    return null;
-                }
                 toggleLoading(true);
                 try {
                     const requestBody = { action, payload };
@@ -439,22 +435,10 @@
                         headers: { 'Content-Type': 'application/json' }, 
                         body: JSON.stringify(requestBody) 
                     });
-                    if (!response.ok) {
-                        throw new Error(`ネットワークエラー: ${response.status} ${response.statusText}`);
-                    }
                     const result = await response.json();
                     if (result.status === 'error') throw new Error(result.message || '不明なエラー');
                     return result;
-                } catch (error) { 
-                    if (error instanceof TypeError && error.message.includes('fetch')) {
-                         showAlert('通信エラー (CORSエラーの可能性)。\n\nGASのデプロイ設定（アクセス権限が「全員」か）と、index.html内のURLが最新かを確認してください。');
-                    } else {
-                         showAlert(`エラー: ${error.message}`); 
-                    }
-                    return null; 
-                } finally { 
-                    toggleLoading(false); 
-                }
+                } catch (error) { showAlert(`エラー: ${error.message}`); return null; } finally { toggleLoading(false); }
             };
 
             const extractJANfromGS1 = (text) => {
