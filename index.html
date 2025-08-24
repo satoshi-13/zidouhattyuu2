@@ -242,7 +242,7 @@
                     <button id="copy-doc-button" class="w-full bg-blue-500 text-white p-3 rounded-md hover:bg-blue-600 font-bold">コピー</button>
                     <button id="ai-proofread-button" class="w-full bg-purple-500 text-white p-3 rounded-md hover:bg-purple-600 font-bold flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.96 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
                         AIで添削
                     </button>
@@ -347,7 +347,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const APP_VERSION = '2025.07.31.9'; // Version updated for fix
+            const APP_VERSION = '2025.08.24.1'; // バージョン更新でキャッシュ回避
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('v') !== APP_VERSION) {
@@ -357,7 +357,7 @@
                 return; 
             }
 
-            // ★★★ 新しいデプロイURLに更新済み ★★★
+            // ★★★ 最新のデプロイURL（/exec）にする ★★★
             const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzrVGz3Rarj4MCMegba_k3j3Bf7RsSIym63o4jrOslq0H-WJQMRXZgHSu29H2W0f48vcg/exec';
             
             const state = { 
@@ -419,31 +419,39 @@
             const showCompletionScreen = (message, subMessage, nextAction) => { document.getElementById('complete-message').textContent = message; document.getElementById('complete-sub-message').textContent = subMessage; showView('view-action-complete'); setTimeout(nextAction, 2500); };
             const hideAllModals = () => { Object.values(dom.modals).forEach(modal => modal.classList.add('hidden')); };
 
+            // ====== ★ ここがCORS対策版：プリフライトを起こさない呼び出しに変更 ★ ======
             const callGasApi = async (action, payload = {}) => {
                 toggleLoading(true);
                 try {
-                    const requestBody = { action, payload };
                     const noAuthActions = ['login', 'get_departments', 'get_supplier_emails', 'get_item_name', 'get_item_details'];
                     if (!noAuthActions.includes(action) && state.user) {
-                        requestBody.payload.auth = { email: state.user.email };
+                        payload.auth = { email: state.user.email };
                     } else if (!noAuthActions.includes(action) && !state.user && action !== 'stock_update') {
-                        throw new Error("認証情報がありません。再度ログインしてください。");
+                        throw new Error('認証情報がありません。再度ログインしてください。');
                     }
-                    const response = await fetch(GAS_WEB_APP_URL, { 
-                        method: 'POST', 
-                        mode: 'cors', 
-                        headers: { 'Content-Type': 'application/json' }, 
-                        body: JSON.stringify(requestBody) 
+
+                    // ★ form-urlencoded で送る（ヘッダはこれだけ）
+                    const body = new URLSearchParams({
+                        action,
+                        payload: JSON.stringify(payload)
                     });
-                    const result = await response.json();
+
+                    const res = await fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                        body
+                    });
+
+                    const text = await res.text();
+                    let result;
+                    try { result = JSON.parse(text); } catch { result = { status: 'error', message: text }; }
                     if (result.status === 'error') throw new Error(result.message || '不明なエラー');
                     return result;
                 } catch (error) {
-                    // ★★★ エラーメッセージを詳細化 ★★★
                     let detailedMessage = `通信エラーが発生しました。\n\n`;
                     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
                         detailedMessage += `原因: ネットワーク接続、またはCORSエラーの可能性があります。\n\n`;
-                        detailedMessage += `確認事項:\n1. GASのデプロイ設定で「アクセスできるユーザー」が「全員」になっていますか？\n2. index.htmlのURLは最新のデプロイURLですか？`;
+                        detailedMessage += `確認事項:\n1. GASのデプロイ設定で「アクセスできるユーザー」が「全員」になっていますか？\n2. index.htmlのURLは最新のデプロイURL（/exec）ですか？`;
                     } else {
                         detailedMessage += `詳細: ${error.message}`;
                     }
@@ -453,6 +461,7 @@
                     toggleLoading(false);
                 }
             };
+            // ====== ★ ここまで ======
 
             const extractJANfromGS1 = (text) => {
                 if (typeof text !== 'string') return text;
@@ -503,10 +512,10 @@
                     formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.EAN_13],
                     experimentalFeatures: { useBarCodeDetectorIfSupported: true }
                 };
-                html5QrCode = new Html5Qrcode("qr-reader");
-                html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
+                html5QrCode = new Html5Qrcode('qr-reader');
+                html5QrCode.start({ facingMode: 'environment' }, config, onScanSuccess, () => {})
                 .catch(err => {
-                    showAlert("カメラの起動に失敗しました。");
+                    showAlert('カメラの起動に失敗しました。');
                     document.getElementById('manual-input-area').classList.remove('hidden');
                 });
             };
@@ -1043,7 +1052,7 @@
                     showAlert(`AI添削中にエラーが発生しました: ${error.message}`);
                 } finally {
                     aiButton.disabled = false;
-                    aiButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>AIで添削`;
+                    aiButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.96 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>AIで添削`;
                 }
             };
 
@@ -1378,4 +1387,4 @@
         });
     </script>
 </body>
-</http>
+</html>
