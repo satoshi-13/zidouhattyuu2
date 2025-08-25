@@ -98,6 +98,7 @@
                                 <span>Q&A</span>
                             </button>
                         </div>
+                        <p class="text-xs text-gray-500 mt-2">※ GitHub Pages ではAI(API)機能は未接続のため、添削/Q&Aはダミー応答になります。</p>
                     </div>
                 </div>
             </div>
@@ -310,7 +311,7 @@
         </div>
     </div>
     
-    <div id="order-preview-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 hidden">
+    <div id="order-preview-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify中心 items-center z-50 hidden">
         <div class="bg-white p-6 rounded-lg shadow-xl w-11/12 max-w-md">
             <h3 class="text-lg font-bold mb-4">発注メールの作成</h3>
             <div id="outstanding-order-warning" class="hidden mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-800"><p class="font-bold">注意：未納品あり</p><p id="outstanding-order-message"></p></div>
@@ -347,7 +348,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const APP_VERSION = '2025.07.31.9'; // Version updated for fix
+            const APP_VERSION = '2025.08.25.1'; // Version updated
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('v') !== APP_VERSION) {
@@ -357,7 +358,7 @@
                 return; 
             }
 
-            // ★★★ 新しいデプロイURLに更新済み ★★★
+            // ★★★ デプロイURLを設定 ★★★
             const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx5kmV9ndx3iWDCTTAbUcvYEddcuFKN5qpWwESqfRSHuS5mNSSDgVZ9o4VRjnhpYrft6g/exec';
             
             const state = { 
@@ -419,6 +420,7 @@
             const showCompletionScreen = (message, subMessage, nextAction) => { document.getElementById('complete-message').textContent = message; document.getElementById('complete-sub-message').textContent = subMessage; showView('view-action-complete'); setTimeout(nextAction, 2500); };
             const hideAllModals = () => { Object.values(dom.modals).forEach(modal => modal.classList.add('hidden')); };
 
+            // ---- ここが重要: プリフライト回避（text/plain） ----
             const callGasApi = async (action, payload = {}) => {
                 toggleLoading(true);
                 try {
@@ -431,17 +433,17 @@
                     }
                     const response = await fetch(GAS_WEB_APP_URL, { 
                         method: 'POST', 
-                        mode: 'cors', 
-                        headers: { 'Content-Type': 'application/json' }, 
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, // ★プリフライト不要
+                        cache: 'no-store',
                         body: JSON.stringify(requestBody) 
                     });
                     const result = await response.json();
                     if (result.status === 'error') throw new Error(result.message || '不明なエラー');
                     return result;
                 } catch (error) {
-                    // ★★★ エラーメッセージを詳細化 ★★★
                     let detailedMessage = `通信エラーが発生しました。\n\n`;
-                    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                    if (error instanceof TypeError && String(error.message).includes('Failed to fetch')) {
                         detailedMessage += `原因: ネットワーク接続、またはCORSエラーの可能性があります。\n\n`;
                         detailedMessage += `確認事項:\n1. GASのデプロイ設定で「アクセスできるユーザー」が「全員」になっていますか？\n2. index.htmlのURLは最新のデプロイURLですか？`;
                     } else {
@@ -457,7 +459,7 @@
             const extractJANfromGS1 = (text) => {
                 if (typeof text !== 'string') return text;
                 if (text.startsWith('010') && text.length >= 16) return text.substring(3, 16);
-                const match = text.match(/\(01\)0(\d{13})/);
+                const match = text.match(/\\(01\\)0(\\d{13})/);
                 return match ? match[1] : text;
             };
 
@@ -718,7 +720,7 @@
                 const bodyInput = document.getElementById('preview-body-input');
                 const bodyText = bodyInput.value;
                 
-                const quantityMatch = bodyText.match(/数量：\s*(\d+)/);
+                const quantityMatch = bodyText.match(/数量：\\s*(\\d+)/);
                 if (!quantityMatch || !quantityMatch[1] || Number(quantityMatch[1]) <= 0) {
                     showAlert('本文から有効な数量が見つかりませんでした。「数量： [数字]」の形式で入力されているか確認してください。');
                     return;
@@ -728,8 +730,8 @@
                 const finalSubtotal = finalQuantity * unitPrice;
 
                 let finalBody = bodyText
-                    .replace(/小計：\s*[\d,]+円/, `小計： ${finalSubtotal.toLocaleString()}円`)
-                    .replace(/合計金額：\s*[\d,]+円/, `合計金額： ${finalSubtotal.toLocaleString()}円`);
+                    .replace(/小計：\\s*[\\d,]+円/, `小計： ${finalSubtotal.toLocaleString()}円`)
+                    .replace(/合計金額：\\s*[\\d,]+円/, `合計金額： ${finalSubtotal.toLocaleString()}円`);
 
                 bodyInput.value = finalBody;
                 
@@ -948,7 +950,7 @@
                             <button class="link-qr-button bg-teal-500 text-white px-4 py-1 rounded-md text-sm">QR紐付け</button>
                             <button class="edit-button bg-blue-500 text-white px-4 py-1 rounded-md text-sm">変更</button>
                             <button class="save-button hidden bg-green-500 text-white px-4 py-1 rounded-md text-sm">保存</button>
-                            <button class="cancel-button hidden bg-gray-500 text-white px-4 py-1 rounded-md text-sm">中止</button>
+                            <button class="cancel-button hidden bg-gray-500 text白 px-4 py-1 rounded-md text-sm">中止</button>
                         </div>
                     </div>`;
                 }).join('');
@@ -997,54 +999,11 @@
                 }
             };
             
+            // ---- AI機能（GitHub Pagesではダミー応答） ----
             const handleAiProofread = async () => {
                 const docTextarea = document.getElementById('equipment-document-output');
-                const originalText = docTextarea.value;
-                const promptInput = document.getElementById('ai-prompt-input').value;
-
-                if (!originalText.trim()) {
-                    showAlert('添削するテキストがありません。');
-                    return;
-                }
-                if (!promptInput.trim()) {
-                    showAlert('AIへの指示を入力してください。');
-                    return;
-                }
-
-                const aiButton = document.getElementById('ai-proofread-button');
-                aiButton.disabled = true;
-                aiButton.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="ml-2">AIが添削中...</span>`;
-
-                try {
-                    const fullPrompt = `${promptInput}\n\n---原文---\n${originalText}`;
-                    
-                    const response = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: fullPrompt })
-                    });
-
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.error || 'APIエラー');
-                    }
-
-                    const result = await response.json();
-
-                    if (result.text) {
-                        const proofreadText = result.text;
-                        docTextarea.value = proofreadText;
-                        showAlert('AIによる添削が完了しました。');
-                    } else {
-                        throw new Error('AIからの有効な応答がありませんでした。');
-                    }
-
-                } catch (error) {
-                    showAlert(`AI添削中にエラーが発生しました: ${error.message}`);
-                } finally {
-                    aiButton.disabled = false;
-                    aiButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>AIで添削`;
-                }
+                if (!docTextarea.value.trim()) { showAlert('添削するテキストがありません。'); return; }
+                showAlert('AI添削は未接続のため、ここでは動作しません（GitHub Pages）。テキストは手動で編集してください。');
             };
 
             const startInventoryCount = async () => {
@@ -1108,54 +1067,11 @@
                 loadingInner.className = 'bg-gray-200 rounded-lg p-3 max-w-xs';
                 const loadingP = document.createElement('p');
                 loadingP.className = 'text-sm';
-                loadingP.textContent = '考え中...';
+                loadingP.textContent = '（デモ）AI機能は未接続です。';
                 loadingInner.appendChild(loadingP);
                 loadingDiv.appendChild(loadingInner);
                 chatContainer.appendChild(loadingDiv);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-
-                try {
-                    const prompt = `あなたは在庫管理アプリの専門家アシスタントです。このアプリはGoogleスプレッドシートをデータベースとして使用しています。主な機能は、入庫、出庫、新規物品登録、棚卸し、発注履歴確認などです。ユーザーからの以下の質問に対して、このアプリの機能に基づいて、親切かつ簡潔に回答してください。\n\nユーザーの質問: "${userQuestion}"`;
-                    
-                    const response = await fetch('/api/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt })
-                    });
-
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.error || 'APIエラー');
-                    }
-
-                    const result = await response.json();
-
-                    let aiResponseText = result.text || '申し訳ありません、うまく回答を生成できませんでした。';
-                    
-                    const responseInner = document.createElement('div');
-                    responseInner.className = 'bg-gray-200 rounded-lg p-3 max-w-xs';
-                    const responseP = document.createElement('p');
-                    responseP.className = 'text-sm';
-                    aiResponseText.split('\n').forEach((line, idx) => {
-                        if (idx > 0) responseP.appendChild(document.createElement('br'));
-                        responseP.appendChild(document.createTextNode(line));
-                    });
-                    responseInner.appendChild(responseP);
-                    loadingDiv.innerHTML = '';
-                    loadingDiv.appendChild(responseInner);
-
-                } catch (error) {
-                    const errorInner = document.createElement('div');
-                    errorInner.className = 'bg-red-100 text-red-700 rounded-lg p-3 max-w-xs';
-                    const errorP = document.createElement('p');
-                    errorP.className = 'text-sm';
-                    errorP.textContent = `エラーが発生しました: ${error.message}`;
-                    errorInner.appendChild(errorP);
-                    loadingDiv.innerHTML = '';
-                    loadingDiv.appendChild(errorInner);
-                } finally {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
             };
 
             const setupEventListeners = () => {
@@ -1285,15 +1201,9 @@
                     const button = e.target;
                     const textarea = document.getElementById('equipment-document-output');
                     navigator.clipboard.writeText(textarea.value)
-                        .then(() => {
-                            button.textContent = 'コピーしました！';
-                        })
-                        .catch(() => {
-                            button.textContent = 'コピーに失敗しました';
-                        })
-                        .finally(() => {
-                            setTimeout(() => { button.textContent = 'コピー'; }, 2000);
-                        });
+                        .then(() => { button.textContent = 'コピーしました！'; })
+                        .catch(() => { button.textContent = 'コピーに失敗しました'; })
+                        .finally(() => { setTimeout(() => { button.textContent = 'コピー'; }, 2000); });
                 });
                 document.getElementById('ai-proofread-button').addEventListener('click', handleAiProofread);
                 document.getElementById('item-list-container').addEventListener('click', handleItemListClick);
@@ -1303,7 +1213,7 @@
 
                 document.getElementById('extract-jan-button').addEventListener('click', () => { const el = document.getElementById('correction-input'); const ext = extractJANfromGS1(el.value); el.value = ext; fetchAndDisplayItemName(ext); });
                 document.getElementById('correction-input').addEventListener('input', e => { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => fetchAndDisplayItemName(e.target.value), 300); });
-                document.querySelector('main').addEventListener('click', e => { if (e.target && e.target.id === 'go-to-register-button') { const code = e.target.dataset.code; showView('view-new-item'); if (/^\d{13}$/.test(code)) document.getElementById('new-barcode').value = code; else document.getElementById('new-qr-id').value = code; loadSupplierEmails(); }});
+                document.querySelector('main').addEventListener('click', e => { if (e.target && e.target.id === 'go-to-register-button') { const code = e.target.dataset.code; showView('view-new-item'); if (/^\\d{13}$/.test(code)) document.getElementById('new-barcode').value = code; else document.getElementById('new-qr-id').value = code; loadSupplierEmails(); }});
                 
                 document.getElementById('link-new-qr-button').addEventListener('click', () => {
                     state.linkingContext.sourceBarcode = document.getElementById('correction-input').value.trim();
